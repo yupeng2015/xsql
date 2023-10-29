@@ -341,50 +341,68 @@ func mapped(field reflect.Value, row Row, tag string, opts *Options) (err error)
 
 	res := row.Get(tag)
 	v := res.Value()
-
-	switch field.Kind() {
-	case reflect.Int:
-		v = int(res.Int())
-		break
-	case reflect.Int8:
-		v = int8(res.Int())
-		break
-	case reflect.Int16:
-		v = int16(res.Int())
-		break
-	case reflect.Int32:
-		v = int32(res.Int())
-		break
-	case reflect.Int64:
-		v = res.Int()
-		break
-	case reflect.Uint:
-		v = uint(res.Int())
-		break
-	case reflect.Uint8:
-		v = uint8(res.Int())
-		break
-	case reflect.Uint16:
-		v = uint16(res.Int())
-		break
-	case reflect.Uint32:
-		v = uint32(res.Int())
-		break
-	case reflect.Uint64:
-		v = uint64(res.Int())
-		break
-	case reflect.String:
-		v = res.String()
-		break
-	default:
-		if !res.Empty() &&
-			field.Type().String() == "time.Time" &&
-			reflect.ValueOf(v).Type().String() != "time.Time" {
-			//fmt.Println(res.String())
-			if t, e := time.ParseInLocation(timeLayout, res.String(), time.Local); e == nil {
-				v = t
-			} else {
-				return fmt.Errorf("time parse fail for field %s: %v", tag, e)
+	fk := field.Kind()
+	if fk == reflect.Struct {
+		fkStr := field.Type().String()
+		switch fkStr {
+		case "sql.NullString":
+			v = sql.NullString{
+				Valid:  true,
+				String: res.String(),
+			}
+			break
+		case "sql.NullInt64":
+			v = sql.NullInt64{
+				Valid: true,
+				Int64: res.Int(),
+			}
+			break
+		}
+	} else {
+		switch field.Kind() {
+		case reflect.Int:
+			v = int(res.Int())
+			break
+		case reflect.Int8:
+			v = int8(res.Int())
+			break
+		case reflect.Int16:
+			v = int16(res.Int())
+			break
+		case reflect.Int32:
+			v = int32(res.Int())
+			break
+		case reflect.Int64:
+			v = res.Int()
+			break
+		case reflect.Uint:
+			v = uint(res.Int())
+			break
+		case reflect.Uint8:
+			v = uint8(res.Int())
+			break
+		case reflect.Uint16:
+			v = uint16(res.Int())
+			break
+		case reflect.Uint32:
+			v = uint32(res.Int())
+			break
+		case reflect.Uint64:
+			v = uint64(res.Int())
+			break
+		case reflect.String:
+			v = res.String()
+			break
+		default:
+			if !res.Empty() &&
+				field.Type().String() == "time.Time" &&
+				reflect.ValueOf(v).Type().String() != "time.Time" {
+				//fmt.Println(res.String())
+				if t, e := time.ParseInLocation(timeLayout, res.String(), time.Local); e == nil {
+					v = t
+				} else {
+					return fmt.Errorf("time parse fail for field %s: %v", tag, e)
+				}
 			}
 		}
 	}

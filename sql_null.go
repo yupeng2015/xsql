@@ -5,6 +5,10 @@ import (
 	"reflect"
 )
 
+type SqlNullKind struct {
+	reflect.Kind
+}
+
 type SqlNull struct {
 	reflect.Value
 }
@@ -41,3 +45,7 @@ func (this SqlNull) FieldAnyBasic(i int) any {
 	}
 	return v
 }
+
+//func (this SqlNull) Kind() SqlNullKind {
+//
+//}

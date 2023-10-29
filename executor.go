@@ -98,6 +98,11 @@ func (t *executor) Insert(data interface{}, opts *Options) (sql.Result, error) {
 				valueFieldVal = fmt.Sprintf("%s", valBasic)
 			} else if fieldTypeStr == "int" || fieldTypeStr == "int64" || fieldTypeStr == "int32" {
 				valueFieldVal = fmt.Sprintf("%d", valBasic)
+			} else if fieldTypeStr == "[]uint8" {
+				blobInsertRealVal := valBasic.([]uint8)
+				if len(blobInsertRealVal) == 0 {
+					valueFieldVal = "0"
+				}
 			} else {
 				valueFieldVal = "OTHER_DATA"
 			}
@@ -128,7 +133,7 @@ func (t *executor) Insert(data interface{}, opts *Options) (sql.Result, error) {
 					bindArgsPrint += fmt.Sprintf("%s, ", insertRealVal)
 					bindArgs = append(bindArgs, insertRealVal)
 				} else {
-					insertRealVal := value.Field(i).Interface()
+					insertRealVal := value.FieldAnyBasic(i)
 					if fieldTypeStr == "string" {
 						bindArgsPrint += fmt.Sprintf("'%v', ", insertRealVal)
 					} else if fieldTypeStr == "[]uint8" {
@@ -214,7 +219,9 @@ func (t *executor) InsertTakeLastId(data interface{}, withSeq string, query quer
 
 	table := ""
 
-	value := reflect.ValueOf(data)
+	value := SqlNull{
+		reflect.ValueOf(data),
+	}
 	switch value.Kind() {
 	case reflect.Ptr:
 		return t.Insert(value.Elem().Interface(), opts)
@@ -250,10 +257,11 @@ func (t *executor) InsertTakeLastId(data interface{}, withSeq string, query quer
 			}
 
 			valueFieldVal := ""
+			valBasic := value.FieldAnyBasic(i)
 			if fieldTypeStr == "string" {
-				valueFieldVal = fmt.Sprintf("%s", value.Field(i).Interface())
+				valueFieldVal = fmt.Sprintf("%s", valBasic)
 			} else if fieldTypeStr == "int" || fieldTypeStr == "int64" || fieldTypeStr == "int32" {
-				valueFieldVal = fmt.Sprintf("%d", value.Field(i).Interface())
+				valueFieldVal = fmt.Sprintf("%d", valBasic)
 			}
 
 			//fmt.Println(value.Field(i).Type().String(),value.Field(i).Interface(),valueFieldVal)
@@ -298,7 +306,7 @@ func (t *executor) InsertTakeLastId(data interface{}, withSeq string, query quer
 	dataTable, _ := data.(Table)
 	switch dataTable.DBType() {
 	case "Mssql":
-		SQL += ";Select ISNULL(SCOPE_IDENTITY(),0) INSERT_ID"
+		SQL += ";Select SCOPE_IDENTITY() INSERT_ID"
 		f, err := query.Fetch(SQL, bindArgs, opts)
 		if err != nil {
 			return nil, err
