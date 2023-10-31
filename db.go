@@ -102,12 +102,40 @@ func (t *DB) Update(data interface{}, expr string, args ...interface{}) (sql.Res
 	return t.executor.Update(data, expr, args, &t.Options)
 }
 
-func (t *DB) Save(data interface{}, orInsert bool) (sql.Result, error) {
+func (t *DB) Save(data interface{}, orInsert bool, forceFields []string) (sql.Result, error) {
 	_, ok := data.(TableAttribute)
 	if !ok {
 		return nil, errors.New("structure does not implement an interface TableAttribute")
 	}
-	return t.executor.Save(data, orInsert, &t.Options)
+	return t.executor.Save(data, orInsert, nil, &t.Options)
+}
+
+/*
+@Description: 根据主键删除
+@receiver t
+@param data
+@param primaryVal
+@return sql.Result
+@return error
+*/
+func (t *DB) DeleteByPrimary(data interface{}, primaryVal any) (sql.Result, error) {
+	tt, ok := data.(TableAttribute)
+	if !ok {
+		return nil, errors.New("should implement an interface TableAttribute")
+	}
+	tableName := tt.TableName()
+	where := ""
+	primaryKey := tt.PrimaryName()
+	switch primaryVal.(type) {
+	case string:
+		where = fmt.Sprintf("WHERE %s = '%s'", primaryKey, primaryVal)
+		break
+	case int, int64:
+		where = fmt.Sprintf("WHERE %s = %d", primaryKey, primaryVal)
+		break
+	}
+	sqlStr := fmt.Sprintf("DELETE FROM %s %s", tableName, where)
+	return t.Exec(sqlStr)
 }
 
 /*

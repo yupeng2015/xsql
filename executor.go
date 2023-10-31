@@ -749,7 +749,7 @@ func (t *executor) Update(data interface{}, expr string, args []interface{}, opt
 	return res, nil
 }
 
-func (t *executor) Save(data interface{}, orInsert bool, opts *Options) (sql.Result, error) {
+func (t *executor) Save(data interface{}, orInsert bool, fields []string, opts *Options) (sql.Result, error) {
 	tt, ok := data.(TableAttribute)
 	if !ok {
 		return nil, errors.New("should implement an interface TableAttribute")
@@ -782,7 +782,7 @@ func (t *executor) Save(data interface{}, orInsert bool, opts *Options) (sql.Res
 	var primaryVal any
 	switch value.Kind() {
 	case reflect.Ptr:
-		return t.Save(value.Elem().Interface(), orInsert, opts)
+		return t.Save(value.Elem().Interface(), orInsert, fields, opts)
 	case reflect.Struct:
 		if tab, ok := data.(Table); ok {
 			table = tab.TableName()
@@ -790,12 +790,13 @@ func (t *executor) Save(data interface{}, orInsert bool, opts *Options) (sql.Res
 			table = value.Type().Name()
 		}
 		paramNum := 0 //真正需要更新得字段数量
-
+		typeVal := reflect.TypeOf(data)
 		for i := 0; i < value.NumField(); i++ {
 			//类型
-			//fieldTypeStr := value.Field(i).Type().String()
+			fieldTypeStr := value.Field(i).Type().String()
 			//属性名称
-			//fieldName := typeVal.Field(i).Name
+			fieldName := typeVal.Field(i).Name
+			hasForce := false //是否是强制更新的字段
 
 			if !value.Field(i).CanInterface() {
 				continue
@@ -807,16 +808,17 @@ func (t *executor) Save(data interface{}, orInsert bool, opts *Options) (sql.Res
 			}
 
 			strs := strings.Split(tag, ",")
-			//是否空值忽略该字段
-			//var omitempy bool
-			//if len(strs) > 1 {
-			//	for _, s := range strs[1:] {
-			//		if strings.Contains(s, "omitempty") {
-			//			omitempy = true
-			//		}
-			//	}
-			//}
 			tag = strs[0]
+			//是否空值忽略该字段
+			var omitempy bool
+			if len(strs) > 1 {
+				for _, s := range strs[1:] {
+					if strings.Contains(s, "omitempty") {
+						omitempy = true
+					}
+				}
+			}
+
 			if tag == tt.PrimaryName() {
 				primaryVal = value.Field(i).Interface()
 				if primaryVal == 0 {
@@ -829,21 +831,38 @@ func (t *executor) Save(data interface{}, orInsert bool, opts *Options) (sql.Res
 				continue
 			}
 
-			paramNum++
-
-			if placeholder == "?" {
-				set = append(set, fmt.Sprintf("%s = %s", columnQuotes+tag+columnQuotes, placeholder))
-			} else if placeholder == "@" {
-				set = append(set, fmt.Sprintf("%s = @p%d", columnQuotes+tag+columnQuotes, paramNum))
-			} else {
-				set = append(set, fmt.Sprintf("%s = %s", columnQuotes+tag+columnQuotes, fmt.Sprintf(placeholder, i)))
+			valueFieldVal := ""
+			if fieldTypeStr == "string" {
+				valueFieldVal = fmt.Sprintf("%s", value.Field(i).Interface())
+			} else if fieldTypeStr == "int" || fieldTypeStr == "int64" || fieldTypeStr == "int32" {
+				valueFieldVal = fmt.Sprintf("%d", value.Field(i).Interface())
 			}
-			// time特殊处理
-			if value.Field(i).Type().String() == "time.Time" {
-				ti := value.Field(i).Interface().(time.Time)
-				bindArgs = append(bindArgs, ti.Format(timeLayout))
+			for _, field := range fields {
+				if field == fieldName {
+					hasForce = true
+				}
+			}
+
+			//fmt.Println(value.Field(i).Type().String(),value.Field(i).Interface(),valueFieldVal)
+			if omitempy && (valueFieldVal == "" || valueFieldVal == "0") && !hasForce {
+				continue
 			} else {
-				bindArgs = append(bindArgs, value.Field(i).Interface())
+				paramNum++
+				tag = strs[0]
+				if placeholder == "?" {
+					set = append(set, fmt.Sprintf("%s = %s", columnQuotes+tag+columnQuotes, placeholder))
+				} else if placeholder == "@" {
+					set = append(set, fmt.Sprintf("%s = @p%d", columnQuotes+tag+columnQuotes, paramNum))
+				} else {
+					set = append(set, fmt.Sprintf("%s = %s", columnQuotes+tag+columnQuotes, fmt.Sprintf(placeholder, i)))
+				}
+				// time特殊处理
+				if value.Field(i).Type().String() == "time.Time" {
+					ti := value.Field(i).Interface().(time.Time)
+					bindArgs = append(bindArgs, ti.Format(timeLayout))
+				} else {
+					bindArgs = append(bindArgs, value.Field(i).Interface())
+				}
 			}
 
 		}
