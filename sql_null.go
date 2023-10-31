@@ -49,3 +49,26 @@ func (this SqlNull) FieldAnyBasic(i int) any {
 //func (this SqlNull) Kind() SqlNullKind {
 //
 //}
+
+func GetBasicValFromStruct(v any) map[string]any {
+	hofvalue := reflect.ValueOf(v)
+	hofType := reflect.TypeOf(v)
+	m := make(map[string]any)
+	for i := 0; i < hofType.NumField(); i++ { //循环结构体内字段的数量
+		//获取结构体内索引为i的字段值
+		sf := hofType.Field(i)
+		//fieldName := sf.Name
+		nullStr := sf.Type.String()         //获取类型
+		im := hofvalue.Field(i).Interface() //获取该属性实际值
+		tag := sf.Tag.Get("json")
+		switch nullStr {
+		case "sql.NullString":
+			m[tag] = im.(sql.NullString).String
+			break
+		case "sql.NullInt64":
+			m[tag] = im.(sql.NullInt64).Int64
+			break
+		}
+	}
+	return m
+}
