@@ -87,18 +87,23 @@ func Struct2Map(v any) map[string]any {
 		tagConvert := sf.Tag.Get("convert")
 		tagJson := sf.Tag.Get("json")
 		im := hofvalue.Field(i).Interface()
-		if tagConvert == "bool" {
-			switch im.(type) {
-			case int64:
-				m[tagJson] = Int2Bool(im.(int64))
-				break
-			case int:
-				m[tagJson] = Int2Bool(im.(int))
-				break
+		if tagConvert != "" {
+			if tagConvert == "bool" {
+				switch im.(type) {
+				case int64:
+					m[tagJson] = Int2Bool(im.(int64))
+					break
+				case int:
+					m[tagJson] = Int2Bool(im.(int))
+					break
+				}
+			} else if tagConvert == "int" {
+				m[tagJson] = Bool2Int(im.(bool))
 			}
-		} else if tagConvert == "int" {
-			m[tagJson] = Bool2Int(im.(bool))
+		} else {
+			m[tagJson] = im
 		}
+
 	}
 	return m
 }
