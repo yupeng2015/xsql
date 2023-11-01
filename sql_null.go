@@ -72,3 +72,47 @@ func GetBasicValFromStruct(v any) map[string]any {
 	}
 	return m
 }
+
+/*
+@Description: 结构体转map
+@param v
+@return map[string]any
+*/
+func Struct2Map(v any) map[string]any {
+	hofType := reflect.TypeOf(v)
+	hofvalue := reflect.ValueOf(v)
+	m := make(map[string]any)
+	for i := 0; i < hofType.NumField(); i++ {
+		sf := hofType.Field(i)
+		tagConvert := sf.Tag.Get("convert")
+		tagJson := sf.Tag.Get("json")
+		im := hofvalue.Field(i).Interface()
+		if tagConvert == "bool" {
+			switch im.(type) {
+			case int64:
+				m[tagJson] = Int2Bool(im.(int64))
+				break
+			case int:
+				m[tagJson] = Int2Bool(im.(int))
+				break
+			}
+		} else if tagConvert == "int" {
+			m[tagJson] = Bool2Int(im.(bool))
+		}
+	}
+	return m
+}
+
+func Bool2Int(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func Int2Bool[T int | int64](n T) bool {
+	if n == 0 {
+		return false
+	}
+	return true
+}

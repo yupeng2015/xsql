@@ -102,6 +102,21 @@ func (t *DB) Update(data interface{}, expr string, args ...interface{}) (sql.Res
 	return t.executor.Update(data, expr, args, &t.Options)
 }
 
+func (t *DB) UpdateRes(data interface{}, expr string, args ...interface{}) error {
+	res, err := t.Update(data, expr, args...)
+	if err != nil {
+		return err
+	}
+	affect, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affect == 0 {
+		return errors.New("no affect")
+	}
+	return nil
+}
+
 func (t *DB) Save(data interface{}, orInsert bool, forceFields []string) (sql.Result, error) {
 	_, ok := data.(TableAttribute)
 	if !ok {
@@ -136,6 +151,21 @@ func (t *DB) DeleteByPrimary(data interface{}, primaryVal any) (sql.Result, erro
 	}
 	sqlStr := fmt.Sprintf("DELETE FROM %s %s", tableName, where)
 	return t.Exec(sqlStr)
+}
+
+func (t *DB) DeleteByPrimaryRes(data interface{}, primaryVal any) error {
+	res, err := t.DeleteByPrimary(data, primaryVal)
+	if err != nil {
+		return err
+	}
+	affect, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affect == 0 {
+		return errors.New("no affect")
+	}
+	return nil
 }
 
 /*
