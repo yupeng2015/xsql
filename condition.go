@@ -12,23 +12,24 @@ type Condition struct {
 	limit    string
 }
 
-func (this Condition) Where(str string) {
+func (this *Condition) Where(str string) {
 	this.where = append(this.where, str)
 }
 
-func (this Condition) Limit(offset int, size int) {
+func (this *Condition) Limit(offset int, size int) {
 	limit := ""
 	switch this.dataType {
-	case "Mysql":
-	case "Sqlite":
+	case "Mysql", "Sqlite":
 		limit = fmt.Sprintf("limit %d,%d", offset, size)
 		break
 	}
 	this.limit = limit
 }
 
-func (this Condition) Order(fields string, order string) {
-	this.order = fmt.Sprintf("order by %s %s", fields, order)
+func (this *Condition) Order(fields string, order string) {
+	if fields != "" && order != "" {
+		this.order = fmt.Sprintf("order by %s %s", fields, order)
+	}
 }
 
 /*
@@ -36,12 +37,17 @@ func (this Condition) Order(fields string, order string) {
 @receiver this
 @return string
 */
-func (this Condition) Build() string {
-	where := "where " + strings.Join(this.where, " and ")
+func (this *Condition) Build() string {
+	var where string
+	if len(this.where) > 0 {
+		where = "where " + strings.Join(this.where, " and ")
+		where += " "
+	}
+
 	var cond string
 	switch this.dataType {
-	case "Mysql,Sqlite":
-		cond = where + " " + this.order + " " + this.limit
+	case "Mysql", "Sqlite":
+		cond = where + this.order + " " + this.limit
 		break
 	}
 	return cond
